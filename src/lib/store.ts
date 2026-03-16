@@ -1,7 +1,20 @@
+/**
+ * Estado global de SkillSwap con Zustand v5 + persist middleware.
+ *
+ * Ref oficial Zustand v5: https://github.com/pmndrs/zustand/blob/main/docs/integrations/persisting-store-data.md
+ *
+ * Con Next.js App Router (SSR) usamos skipHydration: true para evitar
+ * hydration mismatch. La rehidratación se dispara manualmente desde
+ * el HydrationProvider en layout.tsx con useEffect.
+ */
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
-interface User {
+// ─────────────────────────────────────────────
+// Tipos
+// ─────────────────────────────────────────────
+
+export interface AuthUser {
   id: number;
   username: string;
   fullName: string;
@@ -13,19 +26,26 @@ interface User {
 
 interface AuthState {
   token: string | null;
-  user: User | null;
-  setAuth: (token: string, user: User) => void;
+  user: AuthUser | null;
+  setAuth: (token: string, user: AuthUser) => void;
   logout: () => void;
   updateCredits: (balance: number) => void;
 }
+
+// ─────────────────────────────────────────────
+// Auth Store
+// ─────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      user: null,
+      user:  null,
+
       setAuth: (token, user) => set({ token, user }),
+
       logout: () => set({ token: null, user: null }),
+
       updateCredits: (balance) =>
         set((state) => ({
           user: state.user ? { ...state.user, creditsBalance: balance } : null,
@@ -33,20 +53,22 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'skillswap-auth',
-      // Solo persistir en el cliente
+      storage: createJSONStorage(() => localStorage),
+      /**
+       * skipHydration: true → Zustand no intenta leer localStorage durante SSR.
+       * Requiere llamar manualmente a useAuthStore.persist.rehydrate() en el
+       * primer useEffect del cliente (ver HydrationProvider en layout.tsx).
+       */
       skipHydration: true,
-    }
-  )
+    },
+  ),
 );
 
-interface NotificationState {
-  notifications: Notification[];
-  unreadCount: number;
-  addNotification: (n: Notification) => void;
-  markAllRead: () => void;
-}
+// ─────────────────────────────────────────────
+// Notification Store (en memoria, sin persist)
+// ─────────────────────────────────────────────
 
-interface Notification {
+export interface AppNotification {
   id: string;
   type: string;
   title: string;
@@ -55,14 +77,23 @@ interface Notification {
   read: boolean;
 }
 
+interface NotificationState {
+  notifications: AppNotification[];
+  unreadCount: number;
+  addNotification: (n: AppNotification) => void;
+  markAllRead: () => void;
+}
+
 export const useNotificationStore = create<NotificationState>((set) => ({
   notifications: [],
   unreadCount: 0,
+
   addNotification: (n) =>
     set((state) => ({
       notifications: [n, ...state.notifications].slice(0, 20),
       unreadCount: state.unreadCount + 1,
     })),
+
   markAllRead: () =>
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, read: true })),

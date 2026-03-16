@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
-import { sessionsApi, offersApi, reviewsApi } from '@/lib/api';
+import { sessionsApi, offersApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 
 type Tab = 'sessions-student' | 'sessions-teacher' | 'my-offers';
